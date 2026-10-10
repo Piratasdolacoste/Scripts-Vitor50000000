@@ -1,0 +1,241 @@
+-- ====================================
+-- TRANSFORMICE IMPULSE TEST
+-- ====================================
+
+print("SCRIPT INICIANDO...")
+
+local playerKeys = {}
+
+local IMPULSE_UP = 60
+local IMPULSE_DOWN = 60
+local IMPULSE_SIDE = 60
+local DIAGONAL_MULTIPLIER = 1
+local SPACE_SPEED_MULTIPLIER = 1.5  -- 1.5x mais rápido quando segura espaço
+
+print("Variáveis globais criadas")
+
+-- ====================================
+-- FUNÇÃO: CONGELAR E PREPARAR TODOS OS PLAYERS
+-- ====================================
+function freezeAllPlayers()
+    print("=== CONGELANDO TODOS OS PLAYERS ===")
+    
+    for playerName in pairs(tfm.get.room.playerList) do
+        tfm.exec.freezePlayer(playerName, true, false)
+        tfm.exec.setPlayerGravityScale(playerName, 0, 1)
+        tfm.exec.movePlayer(playerName, 0, 0, false, 0, 0, false)
+        
+        playerKeys[playerName] = { w = false, a = false, s = false, d = false, space = false }
+        
+        print("✓ Congelado: " .. playerName)
+    end
+    
+    print("=== CONGELAMENTO CONCLUÍDO ===")
+end
+
+-- ====================================
+-- FUNÇÃO: FAZER BIND DAS TECLAS
+-- ====================================
+function bindAllPlayerKeys()
+    print("=== BINDANDO TECLAS PARA TODOS ===")
+    
+    for playerName in pairs(tfm.get.room.playerList) do
+        print("Bindando: " .. playerName)
+        
+        system.bindKeyboard(playerName, 87, true, true)
+        system.bindKeyboard(playerName, 87, false, true)
+        
+        system.bindKeyboard(playerName, 65, true, true)
+        system.bindKeyboard(playerName, 65, false, true)
+        
+        system.bindKeyboard(playerName, 83, true, true)
+        system.bindKeyboard(playerName, 83, false, true)
+        
+        system.bindKeyboard(playerName, 68, true, true)
+        system.bindKeyboard(playerName, 68, false, true)
+        
+        system.bindKeyboard(playerName, 32, true, true)
+        system.bindKeyboard(playerName, 32, false, true)
+        
+        print("✓ Bindado: " .. playerName)
+    end
+    
+    print("=== BIND CONCLUÍDO ===")
+end
+
+-- ====================================
+-- FUNÇÃO: APLICAR IMPULSO BASEADO NAS TECLAS PRESSIONADAS
+-- ====================================
+function applyImpulse(playerName)
+    local keys = playerKeys[playerName]
+    
+    local vx = 0
+    local vy = 0
+    
+    -- Contar quantas direções estão pressionadas
+    local directionCount = 0
+    if keys.w then directionCount = directionCount + 1 end
+    if keys.s then directionCount = directionCount + 1 end
+    if keys.a then directionCount = directionCount + 1 end
+    if keys.d then directionCount = directionCount + 1 end
+    
+    -- Calcular velocidade
+    if keys.w then
+        vy = vy - IMPULSE_UP
+    end
+    
+    if keys.s then
+        vy = vy + IMPULSE_DOWN
+    end
+    
+    if keys.a then
+        vx = vx - IMPULSE_SIDE
+    end
+    
+    if keys.d then
+        vx = vx + IMPULSE_SIDE
+    end
+    
+    -- Normalizar diagonal (reduzir velocidade se está em diagonal)
+    if directionCount >= 2 then
+        vx = vx * DIAGONAL_MULTIPLIER
+        vy = vy * DIAGONAL_MULTIPLIER
+    end
+    
+    -- Aplicar multiplicador de espaço se está pressionado
+    if keys.space then
+        vx = vx * SPACE_SPEED_MULTIPLIER
+        vy = vy * SPACE_SPEED_MULTIPLIER
+        print("[SPACE BOOST] " .. playerName .. " - Velocidade aumentada 1.5x")
+    end
+    
+    -- IMPORTANTE: speedOffset = false para SOBRESCREVER a velocidade
+    tfm.exec.movePlayer(playerName, 0, 0, false, vx, vy, false)
+    
+    if vx ~= 0 or vy ~= 0 then
+        local direction = ""
+        if keys.w then direction = direction .. "W " end
+        if keys.a then direction = direction .. "A " end
+        if keys.s then direction = direction .. "S " end
+        if keys.d then direction = direction .. "D " end
+        
+        local speedInfo = keys.space and " [COM BOOST]" or ""
+        
+        print("[IMPULSO] " .. playerName .. " - Teclas: " .. direction .. "| VX: " .. string.format("%.2f", vx) .. " | VY: " .. string.format("%.2f", vy) .. speedInfo)
+    else
+        print("[VELOCITY ZERO] " .. playerName .. " - Nenhuma tecla de movimento pressionada")
+    end
+end
+
+-- ====================================
+-- EVENTO: NOVO JOGO
+-- ====================================
+function eventNewGame()
+    print("EVENTO: eventNewGame chamado")
+    
+    tfm.exec.disableAutoNewGame(true)
+    tfm.exec.disableAutoShaman(true)
+    
+    bindAllPlayerKeys()
+    freezeAllPlayers()
+end
+
+-- ====================================
+-- EVENTO: NOVO PLAYER
+-- ====================================
+function eventNewPlayer(playerName)
+    print("EVENTO: Novo player - " .. playerName)
+    
+    playerKeys[playerName] = { w = false, a = false, s = false, d = false, space = false }
+    
+    system.bindKeyboard(playerName, 87, true, true)
+    system.bindKeyboard(playerName, 87, false, true)
+    system.bindKeyboard(playerName, 65, true, true)
+    system.bindKeyboard(playerName, 65, false, true)
+    system.bindKeyboard(playerName, 83, true, true)
+    system.bindKeyboard(playerName, 83, false, true)
+    system.bindKeyboard(playerName, 68, true, true)
+    system.bindKeyboard(playerName, 68, false, true)
+    system.bindKeyboard(playerName, 32, true, true)
+    system.bindKeyboard(playerName, 32, false, true)
+    
+    tfm.exec.freezePlayer(playerName, true, false)
+    tfm.exec.setPlayerGravityScale(playerName, 0, 1)
+    tfm.exec.movePlayer(playerName, 0, 0, false, 0, 0, false)
+    
+    print("✓ Teclas bindadas e congelado: " .. playerName)
+end
+
+-- ====================================
+-- EVENTO: PLAYER SAIU
+-- ====================================
+function eventPlayerLeft(playerName)
+    print("EVENTO: Player saiu - " .. playerName)
+    playerKeys[playerName] = nil
+end
+
+-- ====================================
+-- EVENTO: TECLADO
+-- ====================================
+function eventKeyboard(playerName, keyCode, down, xPos, yPos, xVel, yVel)
+    print("1")
+    
+    if not playerKeys[playerName] then
+        playerKeys[playerName] = { w = false, a = false, s = false, d = false, space = false }
+    end
+    
+    -- W (87)
+    if keyCode == 87 then
+        playerKeys[playerName].w = down
+        print("[W] Mudou para: " .. tostring(down))
+        applyImpulse(playerName)
+    end
+    
+    -- A (65)
+    if keyCode == 65 then
+        playerKeys[playerName].a = down
+        print("[A] Mudou para: " .. tostring(down))
+        applyImpulse(playerName)
+    end
+    
+    -- S (83)
+    if keyCode == 83 then
+        playerKeys[playerName].s = down
+        print("[S] Mudou para: " .. tostring(down))
+        applyImpulse(playerName)
+    end
+    
+    -- D (68)
+    if keyCode == 68 then
+        playerKeys[playerName].d = down
+        print("[D] Mudou para: " .. tostring(down))
+        applyImpulse(playerName)
+    end
+    
+    -- Espaço (32)
+    if keyCode == 32 then
+        playerKeys[playerName].space = down
+        if down == true then
+            print("[ESPAÇO APERTADO] " .. playerName .. " - Velocidade 1.5x ATIVADA")
+        else
+            print("[ESPAÇO SOLTO] " .. playerName .. " - Velocidade normal")
+        end
+        applyImpulse(playerName)
+    end
+end
+
+-- ====================================
+-- BIND E CONGELAR NO CARREGAMENTO
+-- ====================================
+print("Bindando teclas de todos os players presentes...")
+bindAllPlayerKeys()
+freezeAllPlayers()
+
+print("=================================================")
+print("SCRIPT CARREGADO COM SUCESSO!")
+print("Gravity: 0 | IMPULSE: 30")
+print("Diagonal Multiplier: 0.5")
+print("Space Speed Multiplier: 1.5x")
+print("W/A/S/D = Impulso em cada direção")
+print("ESPAÇO = 1.5x mais rápido!")
+print("=================================================")
